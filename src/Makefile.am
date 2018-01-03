@@ -98,6 +98,7 @@ BITCOIN_CORE_H = \
   consensus/consensus.h \
   core_io.h \
   core_memusage.h \
+  doublespends.h \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
@@ -325,6 +326,7 @@ libbitcoin_common_a_SOURCES = \
   base58.cpp \
   chainparams.cpp \
   coins.cpp \
+  doublespends.cpp \
   auxpow.cpp \
   compressor.cpp \
   core_read.cpp \
