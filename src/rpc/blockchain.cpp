@@ -9,6 +9,7 @@
 #include "checkpoints.h"
 #include "coins.h"
 #include "consensus/validation.h"
+#include "doublespends.h"
 #include "main.h"
 #include "policy/policy.h"
 #include "primitives/transaction.h"
@@ -184,6 +185,66 @@ UniValue getdifficulty(const UniValue& params, bool fHelp)
     LOCK(cs_main);
     return GetDifficulty();
 }
+
+
+UniValue getdoublespends(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getdoublespends\n"
+            "\nReturns all the double spend attempts less than 6 blocks old. \n"
+            "\nArguments:       none\n"
+            "\nResult:          (array, object) array of double spend records\n"
+            "[  \n"
+            "   {               (object) a record of a double spend atempt      \n"
+            "       outpoint:   (object) conflicted output data                 \n"
+            "       {                                                           \n"
+            "           txid,   (string) transaction id                         \n"
+            "           vout    (numeric) output's index                        \n"
+            "       },                                                          \n"
+            "       tx:         (array, string) txid of conflicted transactions \n"
+            "       [\n"
+            "           txid,   (string) txid that has attempted to claim the outpoint\n"
+            "           ...\n"
+            "       ]\n"
+            "   } \n"
+            "   ...\n"
+            "]  \n"
+            "\nExamples:\n"
+            + HelpExampleCli("getdoublespends", "")
+            + HelpExampleRpc("getdoublespends", "")
+        );
+
+    if (!pDoubleSpendsView)
+    {
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "To use this function, you must start zcoin with the -doublespends parameter.");
+    }
+
+    UniValue result(UniValue::VARR);
+
+    for (const CDoubleSpend& d : pDoubleSpendsView->GetAllRecords())
+    {
+        UniValue conflictedOutpoint(UniValue::VOBJ);
+        conflictedOutpoint.push_back(Pair("txid", d.conflictedOutpoint.hash.GetHex()));
+        conflictedOutpoint.push_back(Pair("vout", static_cast<int64_t>(d.conflictedOutpoint.n)));
+
+        UniValue conflictingTx(UniValue::VARR);
+        for (const uint256& hash : d.conflictingTx)
+        {
+            conflictingTx.push_back(hash.GetHex());
+        }
+
+        UniValue record(UniValue::VOBJ);
+        record.push_back(Pair("outpoint", conflictedOutpoint));
+        record.push_back(Pair("tx", conflictingTx));
+        
+        result.push_back(record);
+    }
+
+
+    return result;
+}
+
 
 std::string EntryDescriptionString()
 {
@@ -1197,6 +1258,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockheader",         &getblockheader,         true  },
     { "blockchain",         "getchaintips",           &getchaintips,           true  },
     { "blockchain",         "getdifficulty",          &getdifficulty,          true  },
+    { "blockchain",         "getdoublespends",        &getdoublespends,        true },
     { "blockchain",         "getmempoolancestors",    &getmempoolancestors,    true  },
     { "blockchain",         "getmempooldescendants",  &getmempooldescendants,  true  },
     { "blockchain",         "getmempoolentry",        &getmempoolentry,        true  },

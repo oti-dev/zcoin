@@ -14,13 +14,21 @@
 
 #include <set>
 #include <map>
+#include <memory>
 
 /*
-    Optional functionality - doublespends database
+    Optional functionality - doublespends database.
+
+    Once a double spend attempt is detected (via AcceptToMemoryPoolWorker function), it's information is recorded:
+    -txid and vout (outpoint) of the transaction output that has been attempted to be spent more than once
+    -txid of every transaction that has attempted to claim the output
+    -the block height of the attempt (for cleanup purposes; attempts older than 6 blocks are deleted)
+
 */
 
 class CDoubleSpend
 {
+public:
     //An original outpoint used as input multiple times
     COutPoint conflictedOutpoint;
 
@@ -29,8 +37,6 @@ class CDoubleSpend
 
     //The height of conflictedOutpoint's tx
     int nOriginHeight;
-
-public:
 
     CDoubleSpend();
     
@@ -41,8 +47,6 @@ public:
         READWRITE(conflictingTx);
         READWRITE(nOriginHeight);
     }
-
-    friend class CDoubleSpendsView;
 };
 
 typedef std::map<COutPoint, CDoubleSpend> doublespendsmap_t;
@@ -60,12 +64,12 @@ class CDoubleSpendsView
         Loads the record from database if its not loaded alreeady. 
         Returns false, if the record was not found.
     */
-     bool GetRecord(const COutPoint& key, CDoubleSpend& outRec);
+    CDoubleSpend* GetRecord(const COutPoint& key);
 
-     /* 
+    /* 
         Creates a new double-spend record 
-     */
-     bool CreateRecord(const COutPoint& key, const int nHeight, CDoubleSpend& outRec);
+    */
+    CDoubleSpend* CreateRecord(const COutPoint& key, const int nHeight);
 
      /*
         Write a record to database
@@ -78,8 +82,15 @@ public:
     //Once a double spend attempt is detected in mempool, this function is called to memorize it
     bool RegisterDoubleSpendAttempt(const CTxIn& txin, const uint256& txHash, int nHeight);
 
+    //Delete all double spend records older than 6 blocks
     void DeleteOldRecords(int currentHeight);
 
+    std::vector<CDoubleSpend> GetAllRecords() const;
+
 };
+
+
+
+extern std::unique_ptr<CDoubleSpendsView> pDoubleSpendsView;
 
 #endif //ZCOIN_DOUBLESPENDS_H

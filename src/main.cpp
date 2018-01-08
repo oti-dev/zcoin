@@ -14,6 +14,7 @@
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
+#include "doublespends.h"
 #include "hash.h"
 #include "init.h"
 #include "base58.h"
@@ -1729,6 +1730,13 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
                             }
                         }
                         if (fReplacementOptOut) {
+
+                            if (pDoubleSpendsView)
+                            {
+                                pDoubleSpendsView->RegisterDoubleSpendAttempt(txin, tx.GetHash(), chainActive.Tip()->nHeight);
+                                pDoubleSpendsView->RegisterDoubleSpendAttempt(txin, ptxConflicting->GetHash(), chainActive.Tip()->nHeight);
+                            }
+
                             LogPrintf("cause by -> txn-mempool-conflict!\n");
                             return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                         }
@@ -3385,6 +3393,9 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
             pcoinsTip->DynamicMemoryUsage() * (1.0 / (1 << 20)), pcoinsTip->GetCacheSize());
     if (!warningMessages.empty())
         LogPrintf(" warning='%s'", boost::algorithm::join(warningMessages, ", "));
+
+    if (pDoubleSpendsView)
+        pDoubleSpendsView->DeleteOldRecords(pindexNew->nHeight);
 }
 
 /** Disconnect chainActive's tip. You probably want to call mempool.removeForReorg and manually re-limit mempool size after this, with cs_main held. */

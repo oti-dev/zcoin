@@ -17,6 +17,7 @@
 #include "checkpoints.h"
 #include "compat/sanity.h"
 #include "consensus/validation.h"
+#include "doublespends.h"
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
@@ -1465,6 +1466,12 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
+
+                if (mapArgs.count("-doublespends"))
+                {
+                    pDoubleSpendsView.reset(new CDoubleSpendsView(nCoinDBCache));
+                }
+
                 LogPrintf("fReindex = %s\n", fReindex);
                 if (fReindex) {
                     pblocktree->WriteReindexing(true);
@@ -1510,7 +1517,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                                 "Unable to rewind the database to a pre-fork state. You will need to redownload the blockchain");
                         break;
                     }
-                }
+                }                        
 
                 uiInterface.InitMessage(_("Verifying blocks..."));
                 if (fHavePruned && GetArg("-checkblocks", DEFAULT_CHECKBLOCKS) > MIN_BLOCKS_TO_KEEP) {
