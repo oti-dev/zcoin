@@ -611,26 +611,20 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
             continue;
         }
         // //check protocol version
-        if (mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
-            // LogPrintf("Invalid nProtocolVersion!\n");
-            // LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
-            // LogPrintf("mnpayments.GetMinZnodePaymentsProto=%s!\n", mnpayments.GetMinZnodePaymentsProto());
-            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'invalid nProtocolVersion'\n",
-                     mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString());
+        if(mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
+            LogPrintf("Invalid nProtocolVersion!\n");
+            LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
+            LogPrintf("mnpayments.GetMinZnodePaymentsProto=%s!\n", mnpayments.GetMinZnodePaymentsProto());
             continue;
         }
         //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-        if (mnpayments.IsScheduled(mn, nBlockHeight)) {
-            // LogPrintf("mnpayments.IsScheduled!\n");
-            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'IsScheduled'\n",
-                     mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString());
+        if(mnpayments.IsScheduled(mn, nBlockHeight)){
+            LogPrintf("mnpayments.IsScheduled!\n");
             continue;
         }
         //it's too new, wait for a cycle
-        if (fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()) {
-            // LogPrintf("it's too new, wait for a cycle!\n");
-            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'it's too new, wait for a cycle!', sigTime=%s, will be qualifed after=%s\n",
-                     mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), DateTimeStrFormat("%Y-%m-%d %H:%M UTC", mn.sigTime).c_str(), DateTimeStrFormat("%Y-%m-%d %H:%M UTC", mn.sigTime + (nMnCount * 2.6 * 60)).c_str());
+        if(fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()){
+            LogPrintf("it's too new, wait for a cycle!\n");
             continue;
         }
         //make sure it has at least as many confirmations as there are znodes
@@ -653,7 +647,7 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
 
     //when the network is in the process of upgrading, don't penalize nodes that recently restarted
     if(fFilterSigTime && nCount < nMnCount / 3) {
-        // LogPrintf("Need Return, nCount=%s, nMnCount/3=%s\n", nCount, nMnCount/3);
+        LogPrintf("Need Return, nCount=%s, nMnCount/3=%s\n", nCount, nMnCount/3);
         return GetNextZnodeInQueueForPayment(nBlockHeight, false, nCount);
     }
 
@@ -839,7 +833,7 @@ void CZnodeMan::ProcessZnodeConnections()
     BOOST_FOREACH(CNode* pnode, vNodes) {
         if(pnode->fZnode) {
             if(darkSendPool.pSubmittedToZnode != NULL && pnode->addr == darkSendPool.pSubmittedToZnode->addr) continue;
-            // LogPrintf("Closing Znode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
+            LogPrintf("Closing Znode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;
         }
     }
@@ -1575,7 +1569,7 @@ void CZnodeMan::UpdateLastPaid()
     LOCK(cs);
     if(fLiteMode) return;
     if(!pCurrentBlockIndex) {
-        // LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
+//        LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
         return;
     }
 
