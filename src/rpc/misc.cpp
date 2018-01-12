@@ -149,6 +149,58 @@ public:
 };
 #endif
 
+UniValue validatekey(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "validatekey \"str\"\n"
+            "\nChecks whether the given string is  privkey or pubaddr \n"
+            "\nArguments:\n"
+            "1. \"string\"     (string, required) The zcoin priv candidate\n"
+            "\nResult:\n"
+            "  \"isprivkey\" :        (boolean) true if the input string is a valid zcoin priv\n"
+   //         "  \"ispubkey\"  :        (boolean) true if the input string is a valid zcoin priv\n"
+            "  \"ispubaddr\" :        (boolean) true if the input string is a valid zcoin priv\n"
+            "\nExamples:\n"
+            + HelpExampleCli("validatekey", "\"1PSSGeFHDnKNxiEyFrD1wcEaHr9hrQDDWc\"")
+            + HelpExampleRpc("validatekey", "\"1PSSGeFHDnKNxiEyFrD1wcEaHr9hrQDDWc\"")
+        );
+
+    auto str = params[0].get_str();
+    UniValue result(UniValue::VOBJ);
+
+    CBitcoinSecret secret;
+    bool validPriv = secret.SetString(str);
+
+
+    if (validPriv && secret.IsValid() && secret.GetKey().IsValid())
+        result.push_back(Pair("isprivkey", true));
+    else result.push_back(Pair("isprivkey", false));
+
+    std::vector<unsigned char> pubKeyChars;
+    if (!DecodeBase58(str, pubKeyChars))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot decode given public key");
+
+ /*   CPubKey pubKey(pubKeyChars.begin(), pubKeyChars.end());
+
+    if (pubKey.IsFullyValid())
+        result.push_back(Pair("ispubkey", true));
+    else result.push_back(Pair("ispubkey", false));*/
+
+
+    CBitcoinAddress address(params[0].get_str());
+    bool validPubAddr = address.IsValid();
+    if(validPubAddr)
+        result.push_back(Pair("ispubaddr", true));
+    else result.push_back(Pair("ispubaddr", false));
+
+
+    
+
+    return result;
+}
+
+
 UniValue validateaddress(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -214,6 +266,43 @@ UniValue validateaddress(const UniValue& params, bool fHelp)
     }
     return ret;
 }
+
+UniValue generatekeypair(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "generatekeypair \n"
+            "\nGenerates a brand new, off-wallet pair of privkey and pubaddr\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"privkey\" :        (string) the newly generated zcoin private key\n"
+            "  \"pubaddr\" :        (string) the newly generated zcoin public address (derived from privkey)\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("generatekeypair", "")
+            + HelpExampleRpc("generatekeypair", "")
+        );
+
+    bool fCompressed = true; // default to compressed public keys if we want 0.6.0 wallets
+
+    CKey priv;
+    priv.MakeNewKey(fCompressed);
+    CPubKey pub = priv.GetPubKey();
+    if (!priv.VerifyPubKey(pub))
+        throw std::runtime_error("Unexpected error generating pubkey");
+
+
+    UniValue result(UniValue::VOBJ);
+
+    //result.push_back(Pair("privkey", std::string(priv.begin(), priv.end())));
+    //result.push_back(Pair("pubkey", std::string(pub.begin(), pub.end())));
+    result.push_back(Pair("privkey", CBitcoinSecret(priv).ToString()));
+//    result.push_back(Pair("pubkey", EncodeBase58(pub.begin(), pub.end())));
+    result.push_back(Pair("pubaddr", CBitcoinAddress(pub.GetID()).ToString()));
+
+    return result;
+}
+
 
 /**
  * Used by addmultisigaddress / createmultisig:
@@ -490,12 +579,16 @@ UniValue setmocktime(const UniValue& params, bool fHelp)
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
+
     { "control",            "getinfo",                &getinfo,                true  }, /* uses wallet if enabled */
+    { "util",               "validatekey",            &validatekey,            true  },
     { "util",               "validateaddress",        &validateaddress,        true  }, /* uses wallet if enabled */
     { "util",               "createmultisig",         &createmultisig,         true  },
     { "util",               "verifymessage",          &verifymessage,          true  },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, true  },
 
+
+    { "util",               "generatekeypair",        &generatekeypair,        true  },
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            true  },
 };
