@@ -200,6 +200,86 @@ UniValue validatekey(const UniValue& params, bool fHelp)
     return result;
 }
 
+UniValue calculatepublickey(const UniValue& params, bool fHelp)
+{
+
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw runtime_error(
+            "calculatepublickey \"zcoinprivkey\" \n"
+            "\nCalculates the public key for given private key\n"
+            "\nArguments:\n"
+            "1. \"zcoinprivkey\"   (string, required) The private key (e.g. output of dumpprivkey) \n"
+            "\nResults:\n"
+            "pubkey (string) - base58 public key"
+            "\nExamples:\n"
+            "\nCalculate public key from a private key\n"
+            + HelpExampleCli("calculatepublickey", "\"zcoinprivkey\"")
+        );
+
+    string strSecret = params[0].get_str();
+
+    CBitcoinSecret vchSecret;
+    bool fGood = vchSecret.SetString(strSecret);
+
+    if (!fGood) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key encoding");
+
+    CKey key = vchSecret.GetKey();
+    if (!key.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key outside allowed range");
+
+    CPubKey pubkey = key.GetPubKey();
+    assert(key.VerifyPubKey(pubkey));
+
+    return EncodeBase58(pubkey.begin(), pubkey.end());;
+}
+
+UniValue calculatepublicaddress(const UniValue& params, bool fHelp)
+{
+
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw runtime_error(
+            "calculatepublicaddress \"key\" \n"
+            "\nCalculates the zcoin address key for given private/public key\n"
+            "\nArguments:\n"
+            "1. \"key\"   (string, required) The private/public key (base58) \n"
+            "\nResults:\n"
+            "address (string) - zcoin address"
+            "\nExamples:\n"
+            + HelpExampleCli("calculatepublicaddress", "\"zcoinpubkey\"")
+        );
+
+    //assume we got a public key
+    string strInput = params[0].get_str();
+
+    //check if we have a private key instead:
+    CBitcoinSecret secret;
+    bool validPriv = secret.SetString(strInput);
+    if (validPriv && secret.IsValid() && secret.GetKey().IsValid())
+    {
+        CKey key = secret.GetKey();
+        if (!key.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key outside allowed range");
+
+        CPubKey pubkey = key.GetPubKey();
+        assert(key.VerifyPubKey(pubkey));
+
+        CKeyID keyID = pubkey.GetID();
+
+        return CBitcoinAddress(keyID).ToString();
+    }
+    else
+    {
+        std::vector<unsigned char> pubChars;
+        if (!DecodeBase58(strInput, pubChars))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot decode given public key");
+        //CPubKey pubkey = DecodeBase58
+
+        CPubKey pubkey(pubChars.begin(), pubChars.end());
+
+        CKeyID keyID = pubkey.GetID();
+
+        return CBitcoinAddress(keyID).ToString();
+    }
+
+}
 
 UniValue validateaddress(const UniValue& params, bool fHelp)
 {
@@ -579,7 +659,9 @@ UniValue setmocktime(const UniValue& params, bool fHelp)
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
-
+    
+    { "util",               "calculatepublickey",     &calculatepublickey,     true  },
+    { "util",               "calculatepublicaddress", &calculatepublicaddress, true  },
     { "control",            "getinfo",                &getinfo,                true  }, /* uses wallet if enabled */
     { "util",               "validatekey",            &validatekey,            true  },
     { "util",               "validateaddress",        &validateaddress,        true  }, /* uses wallet if enabled */
